@@ -36,6 +36,7 @@ public final class WordCounter extends JavaPlugin {
         this.preferences = new PlayerPreferences(this);
 
         this.scoreboardManager = new ScoreboardService(this, config, dataManager);
+        this.scoreboardManager.cleanupInvalidUUIDs();
         this.scoreboardManager.loadExistingScoresFromMainBoard();
 
         getServer().getPluginManager().registerEvents(

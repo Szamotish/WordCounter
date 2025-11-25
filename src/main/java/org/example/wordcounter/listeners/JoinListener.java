@@ -27,29 +27,35 @@ public class JoinListener implements Listener {
     }
 
     @EventHandler
-    public void onJoin(PlayerJoinEvent event) {
+    public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
+        String playerName = player.getName();
         String pref = prefs.get(uuid);
 
-        PlayerScoreboard ps = sbManager.createFor(uuid, player.getName());
-
-        for (Map.Entry<UUID, Integer> entry : dataManager.getAllWordCounts().entrySet()) {
-            UUID otherUUID = entry.getKey();
-            String name = Bukkit.getPlayer(otherUUID) != null
-                    ? Bukkit.getPlayer(otherUUID).getName()
-                    : otherUUID.toString();
-            ps.setWordScore(name, entry.getValue());
+        PlayerScoreboard ps = sbManager.getFor(uuid);
+        if (ps == null) {
+            ps = sbManager.createFor(uuid, playerName);
         }
 
-        for (PlayerScoreboard otherPs : sbManager.getPlayerScoreboards().values()) {
-            if (otherPs != ps) {
-                otherPs.setWordScore(player.getName(), dataManager.getWordCount(uuid));
+        sbManager.loadExistingScoresForPlayer(uuid);
+
+        for (Map.Entry<UUID, Integer> entry : dataManager.getAllWordCounts().entrySet()) {
+            String otherName = dataManager.getNameFromUUID(entry.getKey());
+            if (otherName != null) {
+                Player otherPlayer = Bukkit.getPlayer(entry.getKey());
+                int deaths = otherPlayer != null ? otherPlayer.getStatistic(Statistic.DEATHS) : 0;
+                ps.setDeathScore(otherName, deaths);
             }
         }
 
-        int deaths = player.getStatistic(Statistic.DEATHS);
-        ps.setDeathScore(player.getName(), deaths);
+        int playerDeaths = player.getStatistic(Statistic.DEATHS);
+        for (PlayerScoreboard otherPs : sbManager.getPlayerScoreboards().values()) {
+            if (otherPs != ps) {
+                otherPs.setWordScore(playerName, dataManager.getWordCount(uuid));
+                otherPs.setDeathScore(playerName, playerDeaths);
+            }
+        }
 
         switch (pref.toLowerCase()) {
             case "words":

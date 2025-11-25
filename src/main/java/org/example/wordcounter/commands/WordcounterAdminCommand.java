@@ -116,7 +116,7 @@ public class WordcounterAdminCommand implements CommandExecutor {
                 if (args.length < 2) { sender.sendMessage(ChatColor.RED + "Usage: /wordcounter reset <player|all>"); break; }
                 String target = args[1];
                 if ("all".equalsIgnoreCase(target)) {
-                    sbManager.clearAllScores(); // updated DataManager method
+                    sbManager.clearAllScores();
                     sender.sendMessage(ChatColor.GREEN + "All scores have been reset.");
                 } else {
                     sbManager.clearPlayerScore(target);
@@ -132,7 +132,13 @@ public class WordcounterAdminCommand implements CommandExecutor {
                 String targetPlayer = args[1];
                 try {
                     int newScore = Math.max(0, Integer.parseInt(args[2]));
-                    sbManager.setScore(targetPlayer, newScore); // Use new helper
+                    UUID uuid = sbManager.getDataManager().getUUID(targetPlayer);
+                    if (uuid == null) {
+                        sender.sendMessage(ChatColor.RED + "Player '" + targetPlayer + "' has never joined the server!");
+                        return true;
+                    }
+
+                    sbManager.setScore(targetPlayer, newScore);
                     sender.sendMessage(ChatColor.GREEN + "Set score of " + targetPlayer + " to " + newScore + ".");
                 } catch (NumberFormatException e) {
                     sender.sendMessage(ChatColor.RED + "Please enter a valid number.");

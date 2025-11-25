@@ -109,17 +109,17 @@ public class DataManager {
     }
 
     public UUID getUUID(String playerName) {
-        UUID uuid = nameToUUID.get(playerName);
-        if (uuid != null) return uuid;
+        UUID cached = nameToUUID.get(playerName);
+        if (cached != null) return cached;
 
-        OfflinePlayer p = Bukkit.getOfflinePlayer(playerName);
-        if (p != null && p.hasPlayedBefore()) {
-            uuid = p.getUniqueId();
+        OfflinePlayer p = Bukkit.getOfflinePlayerIfCached(playerName);
+        if (p != null) {
+            UUID uuid = p.getUniqueId();
             nameToUUID.put(playerName, uuid);
             return uuid;
         }
 
-        return UUID.nameUUIDFromBytes(playerName.getBytes());
+        return null;
     }
 
     public String getNameFromUUID(UUID uuid) {
@@ -130,11 +130,13 @@ public class DataManager {
         OfflinePlayer p = Bukkit.getOfflinePlayer(uuid);
         if (p != null && p.hasPlayedBefore()) {
             String name = p.getName();
-            if (name != null) nameToUUID.put(name, uuid);
-            return name;
+            if (name != null) {
+                nameToUUID.put(name, uuid);
+                return name;
+            }
         }
 
-        return uuid.toString();
+        return null;
     }
 
     public synchronized void clearAllWordCounts() {
