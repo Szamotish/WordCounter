@@ -32,9 +32,7 @@ Changes the displayed scoreboard from wordcounter to deathcounter and turns off 
 ## Build
 mvn clean package
 
-markdown
-
 ## Screenshots
-![Word Counter Scoreboard](screenshots/scoreboard words.jpg)
+![scoreboard deaths.jpg](screenshots%2Fscoreboard%20deaths.jpg)
 
-![Word Counter Scoreboard](screenshots/scoreboard deaths.jpg)
+![scoreboard words.jpg](screenshots%2Fscoreboard%20words.jpg)
