@@ -9,12 +9,15 @@
 - Admin commands with tab completion
 
 ## Commands
-/wordcount 
-Shows how many tracked words you have said
-/wordcounter <reload|getcooldown|setcooldown|addword|removeword|setmaxwords|reset|setscore>
-Admin tools for setting up the plugin
-/show <words|deaths|off>
-Changes the displayed scoreboard from wordcounter to deathcounter and turns off both scoreboards
+
+- **/wordcount**  
+  Shows how many tracked words you have said.
+
+- **/wordcounter <reload|getcooldown|setcooldown|addword|removeword|setmaxwords|reset|setscore>**  
+  Admin tools for setting up the plugin.
+
+- **/show <words|deaths|off>**  
+  Changes the displayed scoreboard from wordcounter to deathcounter and can turn off both scoreboards.
 
 
 ## Installation
