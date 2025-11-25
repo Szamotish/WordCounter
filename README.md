@@ -33,6 +33,6 @@ Changes the displayed scoreboard from wordcounter to deathcounter and turns off 
 mvn clean package
 
 ## Screenshots
-![Word Counter Scoreboard](screenshots/scoreboard words.jpg)<br>
+![Word Counter Scoreboard](screenshots/scoreboard words.jpg)
 
 ![Word Counter Scoreboard](screenshots/scoreboard deaths.jpg)
