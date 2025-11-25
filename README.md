@@ -34,4 +34,5 @@ mvn clean package
 
 ## Screenshots
 ![Word Counter Scoreboard](screenshots/scoreboard words.jpg)
+
 ![Word Counter Scoreboard](screenshots/scoreboard deaths.jpg)
