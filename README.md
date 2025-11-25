@@ -1,4 +1,4 @@
-# WordCounter 3.1.0 Plugin
+# WordCounter 3.1.2 Plugin
 
 ## Features
 - Count custom words said in chat
@@ -31,6 +31,8 @@ Changes the displayed scoreboard from wordcounter to deathcounter and turns off 
 
 ## Build
 mvn clean package
+
+markdown
 
 ## Screenshots
 ![Word Counter Scoreboard](screenshots/scoreboard words.jpg)
