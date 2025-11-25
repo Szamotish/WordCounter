@@ -1,0 +1,30 @@
+name: WordCounter
+version: ${project.version}
+main: org.example.wordcounter.WordCounter
+description: Counts how many times each player says tracked words and shows deaths
+api-version: 1.21
+
+commands:
+  wordcount:
+    description: Shows how many tracked words you have said
+    usage: /wordcount
+    permission: wordcounter.use
+
+  wordcounter:
+    description: Admin tools for WordCounter
+    usage: /wordcounter <reload|getcooldown|setcooldown|addword|removeword|setmaxwords|reset|setscore>
+    permission: wordcounter.admin
+
+  show:
+    description: Switch which scoreboard is displayed
+    usage: /show <words|deaths|off>
+    permission: wordcounter.use
+
+permissions:
+  wordcounter.use:
+    description: Allows using /wordcount and /show
+    default: true
+
+  wordcounter.admin:
+    description: Allows administrative WordCounter commands
+    default: op

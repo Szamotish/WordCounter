@@ -1,0 +1,27 @@
+# Tracked words (case-insensitive)
+tracked-words:
+  - word1
+  - word2
+
+
+# Whether to match whole words only (true) or substrings (false)
+match-whole-word: true
+
+# Internal scoreboard objective name (not shown to players)
+objective-name: wordCount
+
+# Display name shown on the scoreboard sidebar (supports & color codes)
+display-name: "&6Word Count"
+
+# Max number of tracked words counted per single chat message
+max-words-per-message: 2
+
+# Cooldown in seconds between when a player can earn score
+cooldown-seconds: 10
+
+# Message sent when a player tries to trigger words during cooldown
+# Use {time} to show remaining seconds
+cooldown-message: "&cYou must wait &e{time}&c more seconds before earning more points!"
+
+# Per player scoreboard display preferences
+preferences: {}
