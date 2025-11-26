@@ -1,4 +1,4 @@
-# WordCounter 3.1.0 Plugin
+# WordCounter 3.1.2 Plugin
 
 ## Features
 - Count custom words said in chat
@@ -9,12 +9,15 @@
 - Admin commands with tab completion
 
 ## Commands
-/wordcount 
-Shows how many tracked words you have said
-/wordcounter <reload|getcooldown|setcooldown|addword|removeword|setmaxwords|reset|setscore>
-Admin tools for setting up the plugin
-/show <words|deaths|off>
-Changes the displayed scoreboard from wordcounter to deathcounter and turns off both scoreboards
+
+- **/wordcount**  
+  Shows how many tracked words you have said.
+
+- **/wordcounter <reload|getcooldown|setcooldown|addword|removeword|setmaxwords|reset|setscore>**  
+  Admin tools for setting up the plugin.
+
+- **/show <words|deaths|off>**  
+  Changes the displayed scoreboard from wordcounter to deathcounter and can turn off both scoreboards.
 
 
 ## Installation
@@ -33,6 +36,6 @@ Changes the displayed scoreboard from wordcounter to deathcounter and turns off 
 mvn clean package
 
 ## Screenshots
-![Word Counter Scoreboard](screenshots/scoreboard words.jpg)
+![scoreboard deaths.jpg](screenshots%2Fscoreboard%20deaths.jpg)
 
-![Word Counter Scoreboard](screenshots/scoreboard deaths.jpg)
+![scoreboard words.jpg](screenshots%2Fscoreboard%20words.jpg)
