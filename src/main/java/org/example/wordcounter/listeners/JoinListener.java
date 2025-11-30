@@ -1,6 +1,7 @@
 package org.example.wordcounter.listeners;
 
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.Statistic;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -40,21 +41,32 @@ public class JoinListener implements Listener {
 
         sbManager.loadExistingScoresForPlayer(uuid);
 
-        for (Map.Entry<UUID, Integer> entry : dataManager.getAllWordCounts().entrySet()) {
-            String otherName = dataManager.getNameFromUUID(entry.getKey());
-            if (otherName != null) {
-                Player otherPlayer = Bukkit.getPlayer(entry.getKey());
-                int deaths = otherPlayer != null ? otherPlayer.getStatistic(Statistic.DEATHS) : 0;
-                ps.setDeathScore(otherName, deaths);
-            }
-        }
+        int deaths = player.getStatistic(Statistic.DEATHS);
+        dataManager.setDeathCount(uuid, deaths);
+        ps.setDeathScore(playerName, deaths);
 
-        int playerDeaths = player.getStatistic(Statistic.DEATHS);
         for (PlayerScoreboard otherPs : sbManager.getPlayerScoreboards().values()) {
             if (otherPs != ps) {
                 otherPs.setWordScore(playerName, dataManager.getWordCount(uuid));
-                otherPs.setDeathScore(playerName, playerDeaths);
+                otherPs.setDeathScore(playerName, deaths);
             }
+        }
+
+        for (Map.Entry<UUID, Integer> entry : dataManager.getAllDeathCounts().entrySet()) {
+            UUID otherUUID = entry.getKey();
+            String otherName = dataManager.getNameFromUUID(otherUUID);
+
+            if (otherName == null) {
+                OfflinePlayer op = Bukkit.getOfflinePlayer(otherUUID);
+                otherName = op.getName();
+                if (otherName != null) {
+                    dataManager.setDeathCount(otherUUID, entry.getValue());
+                } else continue;
+            }
+
+            int otherDeaths = dataManager.getDeathCount(otherUUID);
+            ps.setDeathScore(otherName, otherDeaths);
+            ps.setWordScore(otherName, dataManager.getWordCount(otherUUID));
         }
 
         switch (pref.toLowerCase()) {

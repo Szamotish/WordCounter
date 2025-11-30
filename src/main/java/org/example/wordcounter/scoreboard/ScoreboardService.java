@@ -2,7 +2,6 @@ package org.example.wordcounter.scoreboard;
 
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.Statistic;
 import org.example.wordcounter.WordCounter;
 import org.example.wordcounter.config.ConfigManager;
 import org.example.wordcounter.data.DataManager;
@@ -13,14 +12,12 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.bukkit.plugin.java.JavaPlugin.getPlugin;
 
 public class ScoreboardService {
 
     private final WordCounter plugin;
     private final ConfigManager cfg;
     private final DataManager dataManager;
-
     private final Map<UUID, PlayerScoreboard> playerScoreboards = new ConcurrentHashMap<>();
 
     public ScoreboardService(WordCounter plugin, ConfigManager cfg, DataManager dataManager) {
@@ -32,7 +29,6 @@ public class ScoreboardService {
     public DataManager getDataManager() {
         return dataManager;
     }
-
     public Map<UUID, PlayerScoreboard> getPlayerScoreboards() {
         return playerScoreboards;
     }
@@ -41,6 +37,7 @@ public class ScoreboardService {
         PlayerScoreboard ps = new PlayerScoreboard(cfg, playerName);
         int count = dataManager.getWordCount(uuid);
         ps.setWordScore(playerName, count);
+        ps.setDeathScore(playerName, dataManager.getDeathCount(uuid));
         playerScoreboards.put(uuid, ps);
         return ps;
     }
@@ -49,9 +46,6 @@ public class ScoreboardService {
         return playerScoreboards.get(uuid);
     }
 
-    public void removeFor(UUID uuid) {
-        playerScoreboards.remove(uuid);
-    }
 
     public void loadExistingScoresFromMainBoard() {
         for (Map.Entry<UUID, Integer> entry : dataManager.getAllWordCounts().entrySet()) {
@@ -94,8 +88,9 @@ public class ScoreboardService {
 
     public synchronized void increment(String playerName, int delta) {
         UUID uuid = dataManager.getUUID(playerName);
-        dataManager.addWordCount(uuid, delta);
+        if (uuid == null) return;
 
+        dataManager.addWordCount(uuid, delta);
         int newVal = dataManager.getWordCount(uuid);
 
         String displayName = dataManager.getNameFromUUID(uuid);
@@ -103,6 +98,28 @@ public class ScoreboardService {
             for (PlayerScoreboard ps : playerScoreboards.values()) {
                 ps.setWordScore(displayName, newVal);
             }
+        }
+    }
+
+    public void setDeathScore(String playerName, int deaths) {
+        UUID uuid = dataManager.getUUID(playerName);
+        if (uuid == null) return;
+
+        dataManager.setDeathCount(uuid, deaths);
+        for (PlayerScoreboard ps : playerScoreboards.values()) {
+            ps.setDeathScore(playerName, deaths);
+        }
+    }
+
+    public void incrementDeath(String playerName, int delta) {
+        UUID uuid = dataManager.getUUID(playerName);
+        if (uuid == null) return;
+
+        dataManager.addDeath(uuid, delta);
+        int newVal = dataManager.getDeathCount(uuid);
+
+        for (PlayerScoreboard ps : playerScoreboards.values()) {
+            ps.setDeathScore(playerName, newVal);
         }
     }
 
@@ -152,12 +169,11 @@ public class ScoreboardService {
             if (name == null) continue;
 
             ps.setWordScore(name, entry.getValue());
-
-            int deaths = 0;
-            if (Bukkit.getPlayer(otherUUID) != null) {
-                deaths = Bukkit.getPlayer(otherUUID).getStatistic(Statistic.DEATHS);
             }
-            ps.setDeathScore(name, deaths);
+
+        for (Map.Entry<UUID, Integer> entry : dataManager.getAllDeathCounts().entrySet()) {
+        String name = dataManager.getNameFromUUID(entry.getKey());
+        if (name != null) ps.setDeathScore(name, entry.getValue());
         }
     }
 }

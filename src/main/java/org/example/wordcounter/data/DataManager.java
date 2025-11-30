@@ -23,6 +23,7 @@ public class DataManager {
     private final File dataFile;
     private final Map<UUID, String> playerPreferences = new HashMap<>();
     private final Map<UUID, Integer> wordCounts = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> deathCounts = new ConcurrentHashMap<>();
     private final Map<String, UUID> nameToUUID = new HashMap<>();
 
     public DataManager(JavaPlugin plugin) {
@@ -43,10 +44,12 @@ public class DataManager {
 
             Map<String, Double> counts = (Map<String, Double>) json.get("wordCounts");
             if (counts != null) {
-                counts.forEach((k, v) -> {
-                    UUID uuid = UUID.fromString(k);
-                    wordCounts.put(uuid, v.intValue());
-                });
+                counts.forEach((k, v) -> wordCounts.put(UUID.fromString(k), v.intValue()));
+            }
+
+            Map<String, Double> deaths = (Map<String, Double>) json.get("deathCounts");
+            if (deaths != null) {
+                deaths.forEach((k, v) -> deathCounts.put(UUID.fromString(k), v.intValue()));
             }
 
             Map<String, String> prefs = (Map<String, String>) json.get("playerPreferences");
@@ -62,9 +65,14 @@ public class DataManager {
     public void saveData() {
         try (FileWriter writer = new FileWriter(dataFile)) {
             Map<String, Object> json = new HashMap<>();
+
             Map<String, Integer> counts = new HashMap<>();
             wordCounts.forEach((uuid, count) -> counts.put(uuid.toString(), count));
             json.put("wordCounts", counts);
+
+            Map<String, Integer> deaths = new HashMap<>();
+            deathCounts.forEach((uuid, count) -> deaths.put(uuid.toString(), count));
+            json.put("deathCounts", deaths);
 
             Map<String, String> prefs = new HashMap<>();
             playerPreferences.forEach((uuid, pref) -> prefs.put(uuid.toString(), pref));
@@ -95,6 +103,26 @@ public class DataManager {
         return new HashMap<>(wordCounts);
     }
 
+    public synchronized void clearAllWordCounts() {
+        wordCounts.clear();
+    }
+
+    public int getDeathCount(UUID uuid) {
+        return deathCounts.getOrDefault(uuid, 0);
+    }
+    public void setDeathCount(UUID uuid, int count) {
+        deathCounts.put(uuid, count); cacheName(uuid);
+    }
+    public void addDeath(UUID uuid, int increment) {
+        deathCounts.put(uuid, getDeathCount(uuid) + increment); cacheName(uuid);
+    }
+    public Map<UUID, Integer> getAllDeathCounts() {
+        return new HashMap<>(deathCounts);
+    }
+    public synchronized void clearAllDeathCounts() {
+        deathCounts.clear();
+    }
+
     public String getPreference(UUID uuid) {
         return playerPreferences.getOrDefault(uuid, "words");
     }
@@ -105,7 +133,7 @@ public class DataManager {
 
     private void cacheName(UUID uuid) {
         OfflinePlayer p = Bukkit.getOfflinePlayer(uuid);
-        if (p != null) nameToUUID.put(p.getName(), uuid);
+        if (p != null && p.getName() != null) nameToUUID.put(p.getName(), uuid);
     }
 
     public UUID getUUID(String playerName) {
@@ -139,7 +167,4 @@ public class DataManager {
         return null;
     }
 
-    public synchronized void clearAllWordCounts() {
-        wordCounts.clear();
-    }
 }
