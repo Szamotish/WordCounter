@@ -1,179 +1,186 @@
 package org.example.wordcounter.scoreboard;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.Statistic;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 import org.example.wordcounter.WordCounter;
 import org.example.wordcounter.config.ConfigManager;
 import org.example.wordcounter.data.DataManager;
+import org.example.wordcounter.util.ColorUtil;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-
+import java.util.logging.Level;
 
 public class ScoreboardService {
 
     private final WordCounter plugin;
     private final ConfigManager cfg;
-    private final DataManager dataManager;
-    private final Map<UUID, PlayerScoreboard> playerScoreboards = new ConcurrentHashMap<>();
+    private final DataManager data;
+    private final Map<UUID, PlayerScoreboard> boards = new ConcurrentHashMap<>();
 
-    public ScoreboardService(WordCounter plugin, ConfigManager cfg, DataManager dataManager) {
+    public ScoreboardService(WordCounter plugin, ConfigManager cfg, DataManager data) {
         this.plugin = plugin;
         this.cfg = cfg;
-        this.dataManager = dataManager;
+        this.data = data;
     }
 
-    public DataManager getDataManager() {
-        return dataManager;
-    }
     public Map<UUID, PlayerScoreboard> getPlayerScoreboards() {
-        return playerScoreboards;
-    }
-
-    public PlayerScoreboard createFor(UUID uuid, String playerName) {
-        PlayerScoreboard ps = new PlayerScoreboard(cfg, playerName);
-        int count = dataManager.getWordCount(uuid);
-        ps.setWordScore(playerName, count);
-        ps.setDeathScore(playerName, dataManager.getDeathCount(uuid));
-        playerScoreboards.put(uuid, ps);
-        return ps;
+        return boards;
     }
 
     public PlayerScoreboard getFor(UUID uuid) {
-        return playerScoreboards.get(uuid);
+        return boards.get(uuid);
     }
 
+    public PlayerScoreboard createFor(UUID uuid) {
+        return boards.computeIfAbsent(uuid, id -> {
+            PlayerScoreboard ps = new PlayerScoreboard(cfg);
+            loadAllInto(ps);
+            return ps;
+        });
+    }
 
-    public void loadExistingScoresFromMainBoard() {
-        for (Map.Entry<UUID, Integer> entry : dataManager.getAllWordCounts().entrySet()) {
-            String name = dataManager.getNameFromUUID(entry.getKey());
-            int score = entry.getValue();
+    public void loadAllInto(PlayerScoreboard ps) {
+        for (OfflinePlayer op : Bukkit.getOfflinePlayers()) {
+            if (!op.hasPlayedBefore()) continue;
+            UUID playerId = op.getUniqueId();
+            if (data.getAllDeathCounts().containsKey(playerId)) continue;
 
-            if (name != null) {
-                for (PlayerScoreboard ps : playerScoreboards.values()) {
-                    ps.setWordScore(name, score);
+            int deaths = 0;
+            try {
+                if (op.isOnline() && op instanceof Player) {
+                    deaths = ((Player) op).getStatistic(Statistic.DEATHS);
+                } else {
+                    deaths = op.getStatistic(Statistic.DEATHS);
                 }
+            } catch (Exception ignored) {
             }
+
+            data.setDeathCount(playerId, deaths);
+        }
+
+        for (UUID id : data.getAllWordCounts().keySet()) {
+            ps.setWordScore(id, data.getWordCount(id), getDisplayName(id));
+        }
+        for (UUID id : data.getAllDeathCounts().keySet()) {
+            ps.setDeathScore(id, data.getDeathCount(id), getDisplayName(id));
         }
     }
 
-    public void persistScoresToMainBoard() {
-        for (Map.Entry<UUID, PlayerScoreboard> entry : playerScoreboards.entrySet()) {
-            PlayerScoreboard ps = entry.getValue();
-            for (String playerName : ps.getTrackedEntries()) {
-                int score = ps.getWordScore(playerName);
-                dataManager.setWordCount(dataManager.getUUID(playerName), score);
-            }
-        }
-        dataManager.saveData();
-    }
-    public synchronized void setScore(String targetPlayer, int newScore) {
-        UUID uuid = dataManager.getUUID(targetPlayer);
+    public void updateEntryName(UUID uuid, String oldName, String newName) {
+        String display = ColorUtil.translateColors(newName);
+        plugin.getLastDisplayNames().put(uuid, display);
 
-        if (uuid == null) {
-            return;
-        }
-        dataManager.setWordCount(uuid, newScore);
-
-        String displayName = dataManager.getNameFromUUID(uuid);
-        if (displayName != null) {
-            for (PlayerScoreboard ps : playerScoreboards.values()) {
-                ps.setWordScore(displayName, newScore);
-            }
+        for (PlayerScoreboard ps : boards.values()) {
+            ps.setWordScore(uuid, data.getWordCount(uuid), display);
+            ps.setDeathScore(uuid, data.getDeathCount(uuid), display);
         }
     }
 
-    public synchronized void increment(String playerName, int delta) {
-        UUID uuid = dataManager.getUUID(playerName);
-        if (uuid == null) return;
+    public void setWordScore(UUID uuid, int score) {
+        data.setWordCount(uuid, score);
+        String display = ColorUtil.translateColors(getDisplayName(uuid));
 
-        dataManager.addWordCount(uuid, delta);
-        int newVal = dataManager.getWordCount(uuid);
+        plugin.getLogger().log(Level.INFO, "setWordScore: uuid={0} entry display={1} score={2}",
+                new Object[]{uuid, ChatColor.stripColor(display), score});
 
-        String displayName = dataManager.getNameFromUUID(uuid);
-        if (displayName != null) {
-            for (PlayerScoreboard ps : playerScoreboards.values()) {
-                ps.setWordScore(displayName, newVal);
-            }
+        for (PlayerScoreboard ps : boards.values()) {
+            ps.setWordScore(uuid, score, display);
         }
     }
 
-    public void setDeathScore(String playerName, int deaths) {
-        UUID uuid = dataManager.getUUID(playerName);
-        if (uuid == null) return;
+    public void incrementWordScore(UUID uuid, int delta) {
+        data.addWordCount(uuid, delta);
+        setWordScore(uuid, data.getWordCount(uuid));
+    }
 
-        dataManager.setDeathCount(uuid, deaths);
-        for (PlayerScoreboard ps : playerScoreboards.values()) {
-            ps.setDeathScore(playerName, deaths);
+    public void setDeathScore(UUID uuid, int score) {
+        data.setDeathCount(uuid, score);
+        String display = ColorUtil.translateColors(getDisplayName(uuid));
+
+        plugin.getLogger().log(Level.INFO, "setDeathScore: uuid={0} display={1} score={2}",
+                new Object[]{uuid, ChatColor.stripColor(display), score});
+
+        for (PlayerScoreboard ps : boards.values()) {
+            ps.setDeathScore(uuid, score, display);
         }
     }
 
-    public void incrementDeath(String playerName, int delta) {
-        UUID uuid = dataManager.getUUID(playerName);
-        if (uuid == null) return;
+    public String getDisplayName(UUID uuid) {
 
-        dataManager.addDeath(uuid, delta);
-        int newVal = dataManager.getDeathCount(uuid);
+        String cached = plugin.getLastDisplayNames().get(uuid);
+        if (cached != null) return cached;
 
-        for (PlayerScoreboard ps : playerScoreboards.values()) {
-            ps.setDeathScore(playerName, newVal);
+        String essNick = getEssentialsNickname(uuid);
+        if (essNick != null && !essNick.isEmpty()) {
+            String translated = ColorUtil.translateColors(essNick);
+            plugin.getLastDisplayNames().put(uuid, translated);
+            return translated;
         }
+
+        Player p = Bukkit.getPlayer(uuid);
+        if (p != null) {
+            String dn = ColorUtil.translateColors(p.getDisplayName());
+            plugin.getLastDisplayNames().put(uuid, dn);
+            return dn;
+        }
+
+        String stored = data.getNameFromUUID(uuid);
+        if (stored != null)
+            return ColorUtil.translateColors(stored);
+
+        OfflinePlayer op = Bukkit.getOfflinePlayer(uuid);
+        if (op.getName() != null)
+            return op.getName();
+
+        return "Unknown";
+    }
+
+    public DataManager getDataManager() {
+        return data;
     }
 
     public void clearAllScores() {
-        dataManager.clearAllWordCounts();
-        for (PlayerScoreboard ps : playerScoreboards.values()) {
-            if (ps != null) ps.clearWordScores();
+        data.clearAllWordCounts();
+        data.clearAllDeathCounts();
+        boards.values().forEach(PlayerScoreboard::clearAllScores);
+    }
+
+    public void clearPlayerScore(UUID uuid) {
+        data.setWordCount(uuid, 0);
+        data.setDeathCount(uuid, 0);
+        String display = getDisplayName(uuid);
+
+        for (PlayerScoreboard ps : boards.values()) {
+            ps.setWordScore(uuid, 0, display);
+            ps.setDeathScore(uuid, 0, display);
         }
     }
 
-    public void clearPlayerScore(String playerName) {
-        UUID uuid = dataManager.getUUID(playerName);
-        String displayName = dataManager.getNameFromUUID(uuid);
-        if (displayName != null) {
-            for (PlayerScoreboard ps : playerScoreboards.values()) {
-                ps.setWordScore(displayName, 0);
-            }
-        }
-    }
+    private String getEssentialsNickname(UUID uuid) {
+        Plugin ess = Bukkit.getPluginManager().getPlugin("Essentials");
+        if (ess == null) return null;
 
-    public void cleanupInvalidUUIDs() {
-        Map<UUID, Integer> map = dataManager.getAllWordCounts();
+        try {
+            Object essentials = ess;
+            Method getUser = essentials.getClass().getMethod("getUser", UUID.class);
+            Object user = getUser.invoke(essentials, uuid);
+            if (user == null) return null;
 
-        List<UUID> toRemove = new ArrayList<>();
+            Method getNick = user.getClass().getMethod("getNickname");
+            Object nick = getNick.invoke(user);
 
-        for (UUID uuid : map.keySet()) {
-            OfflinePlayer op = Bukkit.getOfflinePlayer(uuid);
+            return nick == null ? null : nick.toString();
 
-            if (op.getName() == null) {
-                toRemove.add(uuid);
-            }
-        }
-
-        for (UUID uuid : toRemove) {
-            map.remove(uuid);
-            plugin.getLogger().info("Removed invalid UUID from data: " + uuid);
-        }
-    }
-
-    public void loadExistingScoresForPlayer(UUID playerUUID) {
-        PlayerScoreboard ps = playerScoreboards.get(playerUUID);
-        if (ps == null) return;
-
-        for (Map.Entry<UUID, Integer> entry : dataManager.getAllWordCounts().entrySet()) {
-            UUID otherUUID = entry.getKey();
-            String name = dataManager.getNameFromUUID(otherUUID);
-            if (name == null) continue;
-
-            ps.setWordScore(name, entry.getValue());
-            }
-
-        for (Map.Entry<UUID, Integer> entry : dataManager.getAllDeathCounts().entrySet()) {
-        String name = dataManager.getNameFromUUID(entry.getKey());
-        if (name != null) ps.setDeathScore(name, entry.getValue());
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return null;
         }
     }
 }

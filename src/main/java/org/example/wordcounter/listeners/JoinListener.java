@@ -1,89 +1,56 @@
 package org.example.wordcounter.listeners;
 
 import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
-import org.bukkit.Statistic;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.example.wordcounter.preferences.PlayerPreferences;
+import org.example.wordcounter.WordCounter;
 import org.example.wordcounter.scoreboard.PlayerScoreboard;
 import org.example.wordcounter.scoreboard.ScoreboardService;
-import org.example.wordcounter.data.DataManager;
 
-import java.util.Map;
 import java.util.UUID;
 
 public class JoinListener implements Listener {
 
-    private final ScoreboardService sbManager;
-    private final PlayerPreferences prefs;
-    private final DataManager dataManager;
+    private final WordCounter plugin;
+    private final ScoreboardService sb;
 
-    public JoinListener(ScoreboardService sbManager, PlayerPreferences prefs, DataManager dataManager) {
-        this.sbManager = sbManager;
-        this.prefs = prefs;
-        this.dataManager = dataManager;
+    public JoinListener(WordCounter plugin, ScoreboardService sb,
+                        org.example.wordcounter.preferences.PlayerPreferences prefs,
+                        org.example.wordcounter.data.DataManager ignored) {
+        this.plugin = plugin;
+        this.sb = sb;
     }
 
     @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        UUID uuid = player.getUniqueId();
-        String playerName = player.getName();
-        String pref = prefs.get(uuid);
+    public void onPlayerJoin(PlayerJoinEvent e) {
 
-        PlayerScoreboard ps = sbManager.getFor(uuid);
-        if (ps == null) {
-            ps = sbManager.createFor(uuid, playerName);
+        Player p = e.getPlayer();
+        UUID uuid = p.getUniqueId();
+
+        PlayerScoreboard ps = sb.createFor(uuid);
+
+        for (PlayerScoreboard other : sb.getPlayerScoreboards().values()) {
+            other.setWordScore(uuid, plugin.getDataManager().getWordCount(uuid), sb.getDisplayName(uuid));
+            other.setDeathScore(uuid, plugin.getDataManager().getDeathCount(uuid), sb.getDisplayName(uuid));
         }
 
-        sbManager.loadExistingScoresForPlayer(uuid);
-
-        int deaths = player.getStatistic(Statistic.DEATHS);
-        dataManager.setDeathCount(uuid, deaths);
-        ps.setDeathScore(playerName, deaths);
-
-        for (PlayerScoreboard otherPs : sbManager.getPlayerScoreboards().values()) {
-            if (otherPs != ps) {
-                otherPs.setWordScore(playerName, dataManager.getWordCount(uuid));
-                otherPs.setDeathScore(playerName, deaths);
-            }
-        }
-
-        for (Map.Entry<UUID, Integer> entry : dataManager.getAllDeathCounts().entrySet()) {
-            UUID otherUUID = entry.getKey();
-            String otherName = dataManager.getNameFromUUID(otherUUID);
-
-            if (otherName == null) {
-                OfflinePlayer op = Bukkit.getOfflinePlayer(otherUUID);
-                otherName = op.getName();
-                if (otherName != null) {
-                    dataManager.setDeathCount(otherUUID, entry.getValue());
-                } else continue;
-            }
-
-            int otherDeaths = dataManager.getDeathCount(otherUUID);
-            ps.setDeathScore(otherName, otherDeaths);
-            ps.setWordScore(otherName, dataManager.getWordCount(otherUUID));
-        }
+        String pref = plugin.getPreferences().get(uuid);
+        if (pref == null) pref = "off";
 
         switch (pref.toLowerCase()) {
             case "words":
-                ps.setWordsVisible(true);
-                ps.setDeathsVisible(false);
-                player.setScoreboard(ps.getScoreboard());
+                ps.showWords();
                 break;
             case "deaths":
-                ps.setWordsVisible(false);
-                ps.setDeathsVisible(true);
-                player.setScoreboard(ps.getScoreboard());
+                ps.showDeaths();
                 break;
-            case "off":
             default:
-                player.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
-                break;
+                p.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
+                return;
         }
+
+        p.setScoreboard(ps.getScoreboard());
     }
 }

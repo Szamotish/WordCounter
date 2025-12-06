@@ -1,4 +1,4 @@
-# WordCounter 3.1.4 Plugin
+# WordCounter 3.2.1 Plugin
 
 ## Features
 - Count custom words said in chat

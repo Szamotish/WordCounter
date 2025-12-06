@@ -1,20 +1,16 @@
 package org.example.wordcounter.commands;
 
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 import org.example.wordcounter.WordCounter;
 import org.example.wordcounter.config.ConfigManager;
 import org.example.wordcounter.preferences.PlayerPreferences;
-import org.example.wordcounter.scoreboard.PlayerScoreboard;
 import org.example.wordcounter.scoreboard.ScoreboardService;
 import org.example.wordcounter.words.WordTracker;
 
 import java.util.Locale;
-import java.util.Map;
 import java.util.UUID;
 
 public class WordcounterAdminCommand implements CommandExecutor {
@@ -113,14 +109,22 @@ public class WordcounterAdminCommand implements CommandExecutor {
                 break;
 
             case "reset":
-                if (args.length < 2) { sender.sendMessage(ChatColor.RED + "Usage: /wordcounter reset <player|all>"); break; }
+                if (args.length < 2) {
+                    sender.sendMessage(ChatColor.RED + "Usage: /wordcounter reset <player|all>");
+                    break;
+                }
                 String target = args[1];
                 if ("all".equalsIgnoreCase(target)) {
                     sbManager.clearAllScores();
                     sender.sendMessage(ChatColor.GREEN + "All scores have been reset.");
                 } else {
-                    sbManager.clearPlayerScore(target);
-                    sender.sendMessage(ChatColor.GREEN + "Reset score for player: " + target);
+                    UUID uuid = sbManager.getDataManager().getUUID(target);
+                    if (uuid == null) {
+                        sender.sendMessage(ChatColor.RED + "Player '" + target + "' has never joined the server!");
+                    } else {
+                        sbManager.clearPlayerScore(uuid);
+                        sender.sendMessage(ChatColor.GREEN + "Reset score for player: " + target);
+                    }
                 }
                 break;
 
@@ -137,8 +141,7 @@ public class WordcounterAdminCommand implements CommandExecutor {
                         sender.sendMessage(ChatColor.RED + "Player '" + targetPlayer + "' has never joined the server!");
                         return true;
                     }
-
-                    sbManager.setScore(targetPlayer, newScore);
+                    sbManager.setWordScore(uuid, newScore);
                     sender.sendMessage(ChatColor.GREEN + "Set score of " + targetPlayer + " to " + newScore + ".");
                 } catch (NumberFormatException e) {
                     sender.sendMessage(ChatColor.RED + "Please enter a valid number.");

@@ -8,12 +8,13 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.example.wordcounter.WordCounter;
 import org.example.wordcounter.preferences.PlayerPreferences;
-import org.example.wordcounter.scoreboard.ScoreboardService;
 import org.example.wordcounter.scoreboard.PlayerScoreboard;
+import org.example.wordcounter.scoreboard.ScoreboardService;
 
 import java.util.UUID;
 
 public class ShowCommand implements CommandExecutor {
+
     private final WordCounter plugin;
     private final ScoreboardService sbManager;
     private final PlayerPreferences prefs;
@@ -26,41 +27,48 @@ public class ShowCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+
         if (!(sender instanceof Player)) return true;
         Player p = (Player) sender;
+
         if (!p.hasPermission("wordcounter.use")) {
             p.sendMessage(ChatColor.RED + "You do not have permission to use this command.");
             return true;
         }
+
         if (args.length < 1) {
             p.sendMessage(ChatColor.YELLOW + "Usage: /show <words|deaths|off>");
             return true;
         }
-        String arg = args[0].toLowerCase();
-        UUID uuid = p.getUniqueId();
 
-        switch (arg) {
+        UUID uuid = p.getUniqueId();
+        PlayerScoreboard ps = sbManager.getFor(uuid);
+        if (ps == null) ps = sbManager.createFor(uuid);
+
+        String display = sbManager.getDisplayName(uuid);
+
+        String mode = args[0].toLowerCase();
+
+        switch (mode) {
+
             case "words":
-                PlayerScoreboard ps = sbManager.getFor(uuid);
-                if (ps == null) ps = sbManager.createFor(uuid, p.getName());
-                ps.setWordsVisible(true);
-                ps.setDeathsVisible(false);
+                ps.setWordScore(uuid, plugin.getDataManager().getWordCount(uuid), display);
+                ps.showWords();
                 p.setScoreboard(ps.getScoreboard());
                 prefs.set(uuid, "words");
                 p.sendMessage(ChatColor.GREEN + "Now showing: Word Counter");
                 break;
 
             case "deaths":
-                PlayerScoreboard ps2 = sbManager.getFor(uuid);
-                if (ps2 == null) ps2 = sbManager.createFor(uuid, p.getName());
-                ps2.setDeathsVisible(true);
-                ps2.setWordsVisible(false);
-                p.setScoreboard(ps2.getScoreboard());
+                ps.setDeathScore(uuid, plugin.getDataManager().getDeathCount(uuid), display);
+                ps.showDeaths();
+                p.setScoreboard(ps.getScoreboard());
                 prefs.set(uuid, "deaths");
                 p.sendMessage(ChatColor.RED + "Now showing: Death Counter");
                 break;
 
             case "off":
+                ps.hideAll();
                 p.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
                 prefs.set(uuid, "off");
                 p.sendMessage(ChatColor.GRAY + "Scoreboard hidden.");
@@ -68,8 +76,8 @@ public class ShowCommand implements CommandExecutor {
 
             default:
                 p.sendMessage(ChatColor.YELLOW + "Usage: /show <words|deaths|off>");
-                break;
         }
+
         return true;
     }
 }

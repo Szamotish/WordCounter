@@ -12,6 +12,8 @@ public class ConfigManager {
     private FileConfiguration cfg;
     private List<String> trackedWords = new ArrayList<>();
     private boolean matchWholeWord = true;
+
+    private boolean useNicknames = true;
     private String objectiveName = "wordCount";
     private String displayName = "&6Word Count";
     private int maxWordsPerMessage = 2;
@@ -40,6 +42,7 @@ public class ConfigManager {
                 .collect(Collectors.toList());
 
         matchWholeWord = cfg.getBoolean("match-whole-word", true);
+        useNicknames = cfg.getBoolean("use-nicknames", true);
         objectiveName = cfg.getString("objective-name", "wordCount");
         displayName = cfg.getString("display-name", "&6Word Count");
         maxWordsPerMessage = cfg.getInt("max-words-per-message", 2);
@@ -69,6 +72,7 @@ public class ConfigManager {
     public int getMaxWordsPerMessage() { return maxWordsPerMessage; }
     public int getCooldownSeconds() { return cooldownSeconds; }
     public String getCooldownMessage() { return cooldownMessage; }
+    public boolean useNicknames() { return useNicknames; }
 
     public void setCooldownSeconds(int sec) {
         cooldownSeconds = Math.max(0, sec);

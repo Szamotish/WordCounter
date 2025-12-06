@@ -6,7 +6,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.example</groupId>
     <artifactId>word-counter</artifactId>
-    <version>3.1.4</version>
+    <version>3.2.1</version>
     <packaging>jar</packaging>
 
     <properties>

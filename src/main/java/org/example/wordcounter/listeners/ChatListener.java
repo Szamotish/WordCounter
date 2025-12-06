@@ -46,7 +46,7 @@ public class ChatListener implements Listener {
         }
 
         Bukkit.getScheduler().runTask(plugin, () -> {
-            sbManager.increment(player.getName(), count);
+            sbManager.incrementWordScore(uuid, count);
         });
     }
 }

@@ -22,7 +22,6 @@ public class WordTracker {
         this.patterns = new WordPatternBuilder(cfg).buildPatterns();
     }
 
-    /** Count matches in a message and clamp to maxWordsPerMessage */
     public int countMatches(String message) {
         if (message == null || message.isEmpty()) return 0;
         int count = 0;
@@ -35,7 +34,6 @@ public class WordTracker {
         return Math.min(count, Math.max(0, max));
     }
 
-    /** Increment player word count in DataManager */
     public void addWords(String playerName, int amount) {
         dataManager.addWordCount(dataManager.getUUID(playerName), amount);
     }

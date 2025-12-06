@@ -39,7 +39,9 @@ public class CommandTabCompleter implements TabCompleter {
         if (args.length == 2) {
             if (command.getName().equalsIgnoreCase("wordcounter") &&
                     (args[0].equalsIgnoreCase("reset") || args[0].equalsIgnoreCase("setscore"))) {
-                for (Player p : Bukkit.getOnlinePlayers()) completions.add(p.getName());
+                for (String name : plugin.getDataManager().getAllNameUUIDPairs().keySet()) {
+                    completions.add(name);
+                }
                 completions.removeIf(s -> !s.toLowerCase().startsWith(args[1].toLowerCase()));
                 return completions;
             }

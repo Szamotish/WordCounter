@@ -24,7 +24,7 @@ public class DataManager {
     private final Map<UUID, String> playerPreferences = new HashMap<>();
     private final Map<UUID, Integer> wordCounts = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> deathCounts = new ConcurrentHashMap<>();
-    private final Map<String, UUID> nameToUUID = new HashMap<>();
+    private final Map<String, UUID> nameToUUID = new ConcurrentHashMap<>();
 
     public DataManager(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -33,7 +33,6 @@ public class DataManager {
         loadData();
     }
 
-
     @SuppressWarnings("unchecked")
     public void loadData() {
         if (!dataFile.exists()) return;
@@ -41,20 +40,43 @@ public class DataManager {
         try (FileReader reader = new FileReader(dataFile)) {
             Type type = new TypeToken<Map<String, Object>>() {}.getType();
             Map<String, Object> json = gson.fromJson(reader, type);
+            if (json == null) return;
 
-            Map<String, Double> counts = (Map<String, Double>) json.get("wordCounts");
-            if (counts != null) {
-                counts.forEach((k, v) -> wordCounts.put(UUID.fromString(k), v.intValue()));
+            Object wcObj = json.get("wordCounts");
+            if (wcObj instanceof Map) {
+                Map<?, ?> wc = (Map<?, ?>) wcObj;
+                wc.forEach((k, v) -> {
+                    try {
+                        UUID uuid = UUID.fromString(k.toString());
+                        int val = ((Number) v).intValue();
+                        wordCounts.put(uuid, val);
+                        cacheName(uuid);
+                    } catch (Exception ignored) {}
+                });
             }
 
-            Map<String, Double> deaths = (Map<String, Double>) json.get("deathCounts");
-            if (deaths != null) {
-                deaths.forEach((k, v) -> deathCounts.put(UUID.fromString(k), v.intValue()));
+            Object dcObj = json.get("deathCounts");
+            if (dcObj instanceof Map) {
+                Map<?, ?> dc = (Map<?, ?>) dcObj;
+                dc.forEach((k, v) -> {
+                    try {
+                        UUID uuid = UUID.fromString(k.toString());
+                        int val = ((Number) v).intValue();
+                        deathCounts.put(uuid, val);
+                        cacheName(uuid);
+                    } catch (Exception ignored) {}
+                });
             }
 
-            Map<String, String> prefs = (Map<String, String>) json.get("playerPreferences");
-            if (prefs != null) {
-                prefs.forEach((k, v) -> playerPreferences.put(UUID.fromString(k), v));
+            Object prefsObj = json.get("playerPreferences");
+            if (prefsObj instanceof Map) {
+                Map<?, ?> prefs = (Map<?, ?>) prefsObj;
+                prefs.forEach((k, v) -> {
+                    try {
+                        UUID uuid = UUID.fromString(k.toString());
+                        playerPreferences.put(uuid, v.toString());
+                    } catch (Exception ignored) {}
+                });
             }
 
         } catch (Exception e) {
@@ -110,15 +132,21 @@ public class DataManager {
     public int getDeathCount(UUID uuid) {
         return deathCounts.getOrDefault(uuid, 0);
     }
+
     public void setDeathCount(UUID uuid, int count) {
-        deathCounts.put(uuid, count); cacheName(uuid);
+        deathCounts.put(uuid, count);
+        cacheName(uuid);
     }
+
     public void addDeath(UUID uuid, int increment) {
-        deathCounts.put(uuid, getDeathCount(uuid) + increment); cacheName(uuid);
+        deathCounts.put(uuid, getDeathCount(uuid) + increment);
+        cacheName(uuid);
     }
+
     public Map<UUID, Integer> getAllDeathCounts() {
         return new HashMap<>(deathCounts);
     }
+
     public synchronized void clearAllDeathCounts() {
         deathCounts.clear();
     }
@@ -133,7 +161,9 @@ public class DataManager {
 
     private void cacheName(UUID uuid) {
         OfflinePlayer p = Bukkit.getOfflinePlayer(uuid);
-        if (p != null && p.getName() != null) nameToUUID.put(p.getName(), uuid);
+        if (p != null && p.getName() != null) {
+            nameToUUID.put(p.getName(), uuid);
+        }
     }
 
     public UUID getUUID(String playerName) {
@@ -167,4 +197,12 @@ public class DataManager {
         return null;
     }
 
+    public Map<String, UUID> getAllNameUUIDPairs() {
+        Map<String, UUID> nameUUID = new HashMap<>();
+        for (UUID uuid : getAllWordCounts().keySet()) {
+            String name = getNameFromUUID(uuid);
+            if (name != null) nameUUID.put(name, uuid);
+        }
+        return nameUUID;
+    }
 }

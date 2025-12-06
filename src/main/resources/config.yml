@@ -7,6 +7,9 @@ tracked-words:
 # Whether to match whole words only (true) or substrings (false)
 match-whole-word: true
 
+# If you want the scoreboard to support Essentials "nicknames" change to 'true'
+use-nicknames: true
+
 # Internal scoreboard objective name (not shown to players)
 objective-name: wordCount
 

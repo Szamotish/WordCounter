@@ -3,81 +3,202 @@ package org.example.wordcounter.scoreboard;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.scoreboard.*;
-import org.example.wordcounter.data.DataManager;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * A per-player scoreboard holder. Keeps its own Scoreboard and objectives.
- */
 public class PlayerScoreboard {
 
-    private final Scoreboard scoreboard;
-    private final Objective wordObjective;
-    private final Objective deathObjective;
-    private final Set<String> trackedEntries = ConcurrentHashMap.newKeySet();
+    private final Scoreboard board;
+    private final Objective wordObj;
+    private final Objective deathObj;
+
+    private final Map<UUID, String> entryMap = new ConcurrentHashMap<>();
     private final Map<String, Integer> wordScores = new ConcurrentHashMap<>();
+    private final Map<String, Integer> deathScores = new ConcurrentHashMap<>();
 
-    public PlayerScoreboard(org.example.wordcounter.config.ConfigManager cfg, String playerName) {
-        this.scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
+    public PlayerScoreboard(org.example.wordcounter.config.ConfigManager cfg) {
+        board = Bukkit.getScoreboardManager().getNewScoreboard();
 
-        this.wordObjective = scoreboard.registerNewObjective(
-                cfg.getObjectiveName(), "dummy",
+        board.getEntries().forEach(entry -> {
+            Team t = board.getEntryTeam(entry);
+            if (t != null) t.unregister();
+            board.resetScores(entry);
+        });
+
+        wordObj = board.registerNewObjective(
+                cfg.getObjectiveName(),
+                "dummy",
                 ChatColor.translateAlternateColorCodes('&', cfg.getDisplayName())
         );
-        this.deathObjective = scoreboard.registerNewObjective(
-                "deathCount", Criteria.DEATH_COUNT,
+
+        deathObj = board.registerNewObjective(
+                "deathCount",
+                "dummy",
                 ChatColor.RED + "Deaths"
         );
     }
 
-    public Scoreboard getScoreboard() { return scoreboard; }
+    public Scoreboard getScoreboard() { return board; }
 
-    public void setWordScore(String entry, int score) {
-        trackedEntries.add(entry);
+    public Objective getWordObjective() { return wordObj; }
+    public Objective getDeathObjective() { return deathObj; }
+
+    public void setWordScore(UUID uuid, int score, String display) {
+        String entry = getOrCreateEntry(uuid);
         wordScores.put(entry, score);
-        wordObjective.getScore(entry).setScore(score);
+        setScore(entry, score, display, wordObj);
     }
 
-    public void setDeathScore(String entry, int score) {
-        deathObjective.getScore(entry).setScore(score);
+    public void setDeathScore(UUID uuid, int score, String display) {
+        String entry = getOrCreateEntry(uuid);
+        deathScores.put(entry, score);
+        setScore(entry, score, display, deathObj);
     }
 
-    public void setWordsVisible(boolean visible) {
-        if (visible) wordObjective.setDisplaySlot(DisplaySlot.SIDEBAR);
-        else if (wordObjective.getDisplaySlot() == DisplaySlot.SIDEBAR) wordObjective.setDisplaySlot(null);
+    private void setScore(String entry, int score, String display, Objective obj) {
+        if (entry == null) return;
+
+        Team t = getOrCreateTeam(entry);
+
+        String[] parts = splitDisplay(display);
+        t.setPrefix(parts[0]);
+        t.setSuffix(parts[1]);
+
+        obj.getScore(entry).setScore(score);
     }
 
-    public void setDeathsVisible(boolean visible) {
-        if (visible) deathObjective.setDisplaySlot(DisplaySlot.SIDEBAR);
-        else if (deathObjective.getDisplaySlot() == DisplaySlot.SIDEBAR) deathObjective.setDisplaySlot(null);
+    private String getOrCreateEntry(UUID uuid) {
+        return entryMap.computeIfAbsent(uuid, id -> makeHiddenEntry(uuid));
     }
 
-    public void clearWordScores() {
-        for (String entry : trackedEntries) {
-            wordObjective.getScore(entry).setScore(0);
+    private String makeHiddenEntry(UUID uuid) {
+        String raw = uuid.toString().replace("-", "");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 8 && i < raw.length(); i++) {
+            char ch = raw.charAt(i);
+            sb.append('\u00A7').append(ch);
         }
-        trackedEntries.clear();
+        return sb.toString();
+    }
+
+    private Team getOrCreateTeam(String entry) {
+        String id = "t_" + entry.replace("§", "");
+        if (id.length() > 16) id = id.substring(0, 16);
+
+        Team t = board.getTeam(id);
+        if (t == null) t = board.registerNewTeam(id);
+        if (!t.hasEntry(entry)) t.addEntry(entry);
+
+        t.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.NEVER);
+
+        return t;
+    }
+
+    private String[] splitDisplay(String text) {
+        if (text == null) text = "";
+        String raw = ChatColor.translateAlternateColorCodes('&', text);
+
+        String prefix = "";
+        String suffix = "";
+
+        int visible = 0;
+        StringBuilder sb = new StringBuilder();
+
+        char[] arr = raw.toCharArray();
+        for (int i = 0; i < arr.length; i++) {
+            char c = arr[i];
+
+            if (c == '§') {
+
+                if (i + 13 <= arr.length
+                        && arr[i + 1] == 'x'
+                        && arr[i + 2] == '§') {
+
+                    String hex = raw.substring(i, i + 14);
+                    sb.append(hex);
+                    i += 13;
+                    continue;
+                }
+
+                if (i + 1 < arr.length) {
+                    sb.append(c).append(arr[i + 1]);
+                    i++;
+                    continue;
+                }
+            }
+
+            if (visible < 16) {
+                sb.append(c);
+                visible++;
+            } else {
+                suffix = raw.substring(i);
+                break;
+            }
+        }
+
+        prefix = sb.toString();
+
+        String lastColors = ChatColor.getLastColors(prefix);
+        if (!suffix.isEmpty() && !lastColors.isEmpty()) {
+            suffix = lastColors + suffix;
+        }
+
+        prefix = trimVisibleHexSafe(prefix, 16);
+        suffix = trimVisibleHexSafe(suffix, 16);
+
+        return new String[]{prefix, suffix};
+    }
+
+    private String trimVisibleHexSafe(String input, int max) {
+        int visible = 0;
+        StringBuilder out = new StringBuilder();
+
+        char[] arr = input.toCharArray();
+        for (int i = 0; i < arr.length; i++) {
+            char c = arr[i];
+
+            if (c == '§') {
+                if (i + 13 <= arr.length && arr[i + 1] == 'x' && arr[i + 2] == '§') {
+                    out.append(input, i, i + 14);
+                    i += 13;
+                    continue;
+                }
+
+                if (i + 1 < arr.length) {
+                    out.append(c).append(arr[i + 1]);
+                    i++;
+                    continue;
+                }
+            }
+
+            if (visible < max) {
+                out.append(c);
+                visible++;
+            } else break;
+        }
+
+        return out.toString();
+    }
+
+    public void showWords() {
+        wordObj.setDisplaySlot(DisplaySlot.SIDEBAR);
+        deathObj.setDisplaySlot(null);
+    }
+
+    public void showDeaths() {
+        deathObj.setDisplaySlot(DisplaySlot.SIDEBAR);
+        wordObj.setDisplaySlot(null);
+    }
+
+    public void hideAll() {
+        wordObj.setDisplaySlot(null);
+        deathObj.setDisplaySlot(null);
+    }
+
+    public void clearAllScores() {
         wordScores.clear();
-    }
-
-    public Set<String> getTrackedEntries() {
-        return trackedEntries;
-    }
-
-    public String getNameForUUID(UUID uuid, DataManager dataManager) {
-        String cachedName = dataManager.getNameFromUUID(uuid);
-        if (trackedEntries.contains(cachedName)) return cachedName;
-
-        if (trackedEntries.contains(uuid.toString())) return uuid.toString();
-
-        return cachedName;
-    }
-
-    public int getWordScore(String entry) {
-        return wordScores.getOrDefault(entry, 0);
+        deathScores.clear();
     }
 }
