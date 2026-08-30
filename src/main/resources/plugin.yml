@@ -2,7 +2,7 @@ name: WordCounter
 version: ${project.version}
 main: org.example.wordcounter.WordCounter
 description: Counts how many times each player says tracked words and shows deaths
-api-version: 1.21
+api-version: '26.2'
 
 commands:
   wordcount:

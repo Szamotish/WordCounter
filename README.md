@@ -1,4 +1,4 @@
-# WordCounter 3.2.1 Plugin
+# WordCounter 3.2.2 Plugin
 
 ## Features
 - Count custom words said in chat
@@ -28,8 +28,8 @@
 
 ## Dependencies
 
-- **Java**: 21
-- **PaperMC API**: 1.21.10-R0.1-SNAPSHOT
+- **Java**: 25
+- **PaperMC API**: 26.2.build.120-stable
 - Maven handles dependencies via `pom.xml`
 
 ## Build
